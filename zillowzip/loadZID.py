@@ -7,8 +7,10 @@ def zpid_to_dict(zpid):
     sauce = urllib.request.urlopen("https://www.zillow.com/"
                                "homedetails/" + str(zpid) + "_zpid").read()
     soup = bs.BeautifulSoup(sauce, 'lxml')
-    tag = soup.title.string
-    address = re.search(r'(.+)\s\d\d\d\d\d',tag)
+    #print(soup.title)
+    tag = soup.title
+    print(tag.title)
+    address = re.search(r'<title>(.+)\s\d\d\d\d\d',tag)
     zip = re.search(r'\s(\d\d\d\d\d)\s',tag)
 
     home_dict = {}
@@ -30,29 +32,32 @@ def construct_zillow_URL(type,zip,min,max,):
     zip = str(zip)
     min = str(min)
     max = str(max)
-    sauce = urllib.request.urlopen("https://www.zillow.com/homes/for_sale/"
-                                    ""+zip+"/"+type+"/"+min+"-"+max+"_price/").read()
+    url = "https://www.zillow.com/homes/for_sale/"+zip+"/"+type+"/"+min+"-"+max+"_price/"
+   # print(url)
+    sauce = urllib.request.urlopen(url).read()
 
     return sauce
 
 def get_zip():
-    zip = True
-    while zip:
+    while True:
         try:
             zip = int(input(r"Search by zip code:"))
         except ValueError:
-            print("Error: Must enter a five digit integer.")
+            print("ValueError: Must enter a five digit integer.")
             continue
 
-        if len(str(zip)) != 5:
-            print("Must enter a five digit integer.")
+        try:
+            if len(str(zip)) != 5:
+                raise ValueError
+        except ValueError:
+            print("ValueError: Must enter a five digit integer.")
             continue
         else:
             return str(zip)
 
 def compile_list(zlist):
     home_list = []
-    print("Compiling details...")
+    print("Compiling details...") #psuedo load screen
     for id in zlist[:4]:
         home = zpid_to_dict(id)
         home_list.append(home)

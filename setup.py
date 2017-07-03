@@ -7,4 +7,9 @@ setup(
 	author='Kyle Anderson',
 	description='A tool to search for land on Zillow.com by zipcode.',
 	license='Apache',
+	entry_points={
+          'console_scripts': [
+              'zillowzip = loadZID:main'
+          ]
+      },	
 )

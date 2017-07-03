@@ -8,8 +8,6 @@ setup(
 	description='A tool to search for land on Zillow.com by zipcode.',
 	license='Apache',
 	entry_points={
-          'console_scripts': [
-              'zillowzip = loadZID:main'
-          ]
-      },	
+          		'console_scripts': ['zillowzip = zillowzip.loadZID.main:main']
+		      },	
 )

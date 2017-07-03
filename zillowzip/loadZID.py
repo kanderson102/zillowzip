@@ -1,84 +1,86 @@
 import urllib.request
 import bs4 as bs
 import re
-from pyZillowProcessing import land_details
+import sys
+import argparse
+
 
 def zpid_to_dict(zpid):
     sauce = urllib.request.urlopen("https://www.zillow.com/"
                                "homedetails/" + str(zpid) + "_zpid").read()
     soup = bs.BeautifulSoup(sauce, 'lxml')
-    #print(soup.title)
-    tag = soup.title
-    print(tag.title)
-    address = re.search(r'<title>(.+)\s\d\d\d\d\d',tag)
-    zip = re.search(r'\s(\d\d\d\d\d)\s',tag)
+    header = soup.head.title
+    price = soup.find(class_= "main-row home-summary-row")
+    size = soup.find(class_= "addr_bbs")
 
-    home_dict = {}
-    home_dict['address'] = address.group(0)
-    home_dict['zip'] = zip.group(1)
-
-    # prices = soup.find_all('span')
-    # for price in prices:
-    #     if re.search(r'$',price)==True:
-    #         print(price.string)
-
-    return home_dict
-
-def sqft_to_acres(sqft_lot):
-    return float(sqft_lot)*(0.00002296)
-
-def construct_zillow_URL(type,zip,min,max,):
-    type = type
-    zip = str(zip)
-    min = str(min)
-    max = str(max)
-    url = "https://www.zillow.com/homes/for_sale/"+zip+"/"+type+"/"+min+"-"+max+"_price/"
-   # print(url)
-    sauce = urllib.request.urlopen(url).read()
-
-    return sauce
-
-def get_zip():
-    while True:
-        try:
-            zip = int(input(r"Search by zip code:"))
-        except ValueError:
-            print("ValueError: Must enter a five digit integer.")
-            continue
-
-        try:
-            if len(str(zip)) != 5:
-                raise ValueError
-        except ValueError:
-            print("ValueError: Must enter a five digit integer.")
-            continue
+    home = {}
+    if header:
+        address = re.search(r'(.+)\s\d\d\d\d\d', header.string)
+        home['Address'] = address.group(0)
+        home['Size'] = size.string
+        home['Link'] = "https://www.zillow.com/homedetails/" + str(zpid) + "_zpid/"
+        if price:
+            home['Price'] = (price.text[2:-3]) # get rid of the extra spaces
         else:
-            return str(zip)
+            home['Price'] = 'None'
 
-def compile_list(zlist):
-    home_list = []
-    print("Compiling details...") #psuedo load screen
-    for id in zlist[:4]:
-        home = zpid_to_dict(id)
-        home_list.append(home)
+    return home
 
-    for home in home_list:
-        result = land_details(home['address'],home['zip'])
-        home['zpid'] = result.zillow_id
-        home['Type'] = result.home_type
-        home['Price'] = result.zestimate_amount
-        home['Link'] = result.home_detail_link
-        home['Size'] = str(sqft_to_acres(result.property_size)) + ' acres'
-        print(home)
+#not in use
+def sqft_to_acres(sqft_lot):
+    return round(float(sqft_lot)*(0.00002296),3)
 
-zip = get_zip()
-soup = bs.BeautifulSoup(construct_zillow_URL('land_type',zip,0,200000),'lxml')
-match = re.search('zpid:.+,pg',str(soup))   #string of zp-ID's
-zlist = re.findall('\d+',match.group())     #list of zp-ID's
-if len(zlist)==0:
-    print("No properties available for zip code {}".format(zip))
-else:
-    print('Compiled list of ZPIDs')
-    compile_list(zlist)
+def parse_args(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('zip', type=int, help='Enter a valid five digit zipcode')
+    parser.add_argument('-m','--min', type=int, default=0, help='Minimum Price, ' + \
+                        'Should be less than Max.')
+    parser.add_argument('-M','--Max', type=int, default=0, help='Maximum Price. ' + \
+                        'Should be greater than min.')
+    args = parser.parse_args(argv[1:])
 
+    if len(str(args.zip)) != 5:
+        sys.exit("Must enter a five digit integer.")
 
+    if args.min < 0 or args.Max < 0:
+        sys.exit("Must enter a positive number")
+
+    if args.min and args.Max:
+        if args.min >= args.Max:
+            sys.exit("MIN must be less than MAX.")
+
+    return args
+
+def main(argv):
+    args = parse_args(argv)
+    if not args.Max:
+        max = '_price'
+    else:
+        max = args.Max
+    url = "https://www.zillow.com/homes/for_sale/" + str(args.zip) + \
+          "/land_type/" + str(args.min) + "-" + str(max) + "_price"
+    sauce = urllib.request.urlopen(url).read()
+    soup = bs.BeautifulSoup(sauce,'lxml')
+    match = re.search('zpid:.+,pg',str(soup))   #string of zp-ID's
+
+    try:
+        count = 0
+        while count < 3:    #sometimes the search produces a false negative
+            if match:
+                zlist = re.findall('\d+',match.group())     #list of zp-ID's
+                print('Compiled list of ZPIDs')
+                print('Fetching results...')    #pseudo load screen
+                for z in zlist:
+                    x = zpid_to_dict(z)
+                    if x:
+                        print(x)
+                break
+            else:
+                count+=1
+    except:
+        print("No properties available for zip code {}".format(args.zip))
+
+    return 1
+
+if __name__ == '__main__':
+    sys.exit(main(sys.argv))

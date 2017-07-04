@@ -51,8 +51,8 @@ def parse_args(argv):
 
     return args
 
-def main(argv):
-    args = parse_args(argv)
+def main():
+    args = parse_args(sys.argv)
     if not args.Max:
         max = '_price'
     else:
@@ -83,4 +83,4 @@ def main(argv):
     return 1
 
 if __name__ == '__main__':
-    sys.exit(main(sys.argv))
+	main()
